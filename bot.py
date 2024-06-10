@@ -1,45 +1,45 @@
 import telebot
+import time
 
 from telebot import types
+from threading import Thread
 
 from config import TG_TOKEN, ADMIN_ID
 from admin import Admin, EXCLUDE_USERS
 from user import User
 from constants import *
+from interactions_later_answers_file.read import ReadLaterAnswerFile
+from interactions_later_answers_file.write import WriteLaterAnswerFile
+from keyboards.answer import keyboard_answer
+from keyboards.exclude_user import keyboard_exclude_users
+from keyboards.post import keyboard_for_post
+from keyboards.set_content import keyboard_set_content
+from keyboards.start import keyboard_start
+from utils import str_answer
+
 
 bot = telebot.TeleBot(TG_TOKEN)
 
 
-@bot.message_handler(commands=['start'], content_types=['text'])
-def send_welcome(message):
-    if message.from_user.id == ADMIN_ID:
-        bot.send_message(message.from_user.id,
-                         text="Привет, ты являешься админом, тебе доступен расширенный функционал. Чего ты хочешь?",
-                         reply_markup=keyboard_start())
-        bot.register_next_step_handler(message, callback_admin)
-    else:
-        bot.send_message(message.from_user.id, text="Вы добавлены в рассылку!")
-        Admin().add_user_in_main_mailing_list(message)
+@bot.message_handler(commands=['admin'], content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
+def start_admin(message):
+    bot.send_message(message.from_user.id,
+                     text="Привет, ты являешься админом, тебе доступен расширенный функционал. Чего ты хочешь?",
+                     reply_markup=keyboard_start())
+    bot.register_next_step_handler(message, admin_handler)
 
 
-def keyboard_start():
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    key_content = types.KeyboardButton(text=TEXT_FOR_BUTTON_CONTENT)
-    key_exclude_users = types.KeyboardButton(text=TEXT_FOR_BUTTON_EXCLUDE_USERS)
-    key_users = types.KeyboardButton(text=TEXT_FOR_BUTTON_USERS)
-    key_send_content = types.KeyboardButton(text=TEXT_FOR_BUTTON_SEND_CONTENT)
-    key_show_current_post = types.KeyboardButton(text=TEXT_FOR_CURRENT_POST)
-    key_posts = types.KeyboardButton(text=TEXT_FOR_POSTS)
-    keyboard.add(key_content); keyboard.add(key_show_current_post); keyboard.add(key_posts);
-    keyboard.add(key_send_content); keyboard.add(key_exclude_users); keyboard.add(key_users);
-    return keyboard
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id not in ADMIN_ID)
+def start_another_user(message):
+    bot.send_message(message.from_user.id, text="Вы добавлены в рассылку!")
+    Admin().add_user_in_main_mailing_list(message)
 
 
-@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
-def callback_admin(message):
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
+def admin_handler(message):
     if message.text == TEXT_FOR_BUTTON_USERS:
         bot.send_message(message.chat.id, Admin.info_about_users())
-        bot.register_next_step_handler(message, callback_admin)
+        bot.register_next_step_handler(message, admin_handler)
     elif message.text == TEXT_FOR_BUTTON_CONTENT:
         bot.send_message(message.from_user.id, text="Что хочешь сохранить?", reply_markup=keyboard_set_content())
         bot.register_next_step_handler(message, content_handler)
@@ -52,14 +52,14 @@ def callback_admin(message):
         callback_posts(message)
     elif message.text == TEXT_FOR_BUTTON_EXCLUDE_USERS:
         bot.send_message(message.from_user.id, text="Чего хочешь?", reply_markup=keyboard_exclude_users())
-        bot.register_next_step_handler(message, callback_exclude_user)
+        bot.register_next_step_handler(message, exclude_user_handler)
 
 
-@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
-def callback_exclude_user(message):
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
+def exclude_user_handler(message):
     if message.text == TEXT_FOR_SHOW_EXCLUDE_USERS:
         bot.send_message(message.from_user.id, text=Admin().show_exclude_users(), reply_markup=keyboard_start())
-        bot.register_next_step_handler(message, callback_admin)
+        bot.register_next_step_handler(message, admin_handler)
     if message.text == TEXT_FOR_EXCLUDE_USER:
         bot.send_message(message.from_user.id, text="Укажите ID пользователя.", reply_markup=None)
         bot.register_next_step_handler(message, callback_add_user_in_exclude)
@@ -68,36 +68,19 @@ def callback_exclude_user(message):
         bot.register_next_step_handler(message, callback_remove_user_in_exclude)
 
 
-@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
 def callback_add_user_in_exclude(message):
     bot.send_message(message.from_user.id, Admin().add_exclude_user(message.text), reply_markup=keyboard_start())
-    bot.register_next_step_handler(message, callback_admin)
+    bot.register_next_step_handler(message, admin_handler)
 
 
-@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
 def callback_remove_user_in_exclude(message):
     bot.send_message(message.from_user.id, Admin().remove_exclude_user(message.text), reply_markup=keyboard_start())
-    bot.register_next_step_handler(message, callback_admin)
+    bot.register_next_step_handler(message, admin_handler)
 
 
-def keyboard_exclude_users():
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    key_exclude_user = types.KeyboardButton(text=TEXT_FOR_EXCLUDE_USER)
-    key_remove_exclude_user = types.KeyboardButton(text=TEXT_FOR_REMOVE_EXCLUDE_USER)
-    key_show_exclude_users = types.KeyboardButton(text=TEXT_FOR_SHOW_EXCLUDE_USERS)
-    keyboard.add(key_show_exclude_users); keyboard.add(key_exclude_user); keyboard.add(key_remove_exclude_user)
-    return keyboard
-
-
-def keyboard_set_content():
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    key_content_photo = types.KeyboardButton(text=TEXT_FOR_BUTTON_CONTENT_PHOTO)
-    key_content_text = types.KeyboardButton(text=TEXT_FOR_BUTTON_CONTENT_TEXT)
-    keyboard.add(key_content_text); keyboard.add(key_content_photo)
-    return keyboard
-
-
-@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
 def content_handler(message):
     if message.content_type == "photo" or message.text == TEXT_FOR_BUTTON_CONTENT_PHOTO:
         bot.send_message(message.from_user.id, text="Отправь фотографию!", reply_markup=types.ReplyKeyboardRemove())
@@ -107,18 +90,18 @@ def content_handler(message):
         bot.register_next_step_handler(message, callback_set_content_text)
 
 
-@bot.message_handler(content_types=['photo'], func=lambda message: message.from_user.id == ADMIN_ID)
+@bot.message_handler(content_types=['photo'], func=lambda message: message.from_user.id in ADMIN_ID)
 def callback_set_content_photo(message):
     Admin().set_photo(message, bot, TG_TOKEN)
     bot.send_message(message.from_user.id, "Успешно сохранено! Вернемся назад.", reply_markup=keyboard_start())
-    bot.register_next_step_handler(message, callback_admin)
+    bot.register_next_step_handler(message, admin_handler)
 
 
-@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
 def callback_set_content_text(message):
     Admin().set_content(message)
     bot.send_message(message.from_user.id, "Успешно сохранено! Вернемся назад.", reply_markup=keyboard_start())
-    bot.register_next_step_handler(message, callback_admin)
+    bot.register_next_step_handler(message, admin_handler)
 
 
 def callback_current_post(message):
@@ -132,23 +115,15 @@ def callback_current_post(message):
     bot.register_next_step_handler(message, post_handler)
 
 
-@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
+@bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id in ADMIN_ID)
 def post_handler(message):
     if message.text == TEXT_FOR_SAVE_POST:
         Admin().create_post()
         bot.send_message(message.from_user.id, "Успешно сохранено! Вернемся назад.", reply_markup=keyboard_start())
-        bot.register_next_step_handler(message, send_welcome)
+        bot.register_next_step_handler(message, admin_handler)
     elif message.text == TEXT_FOR_NOT_SAVE_POST:
         bot.send_message(message.from_user.id, "Вернёмся к редактированию поста!", reply_markup=keyboard_set_content())
         bot.register_next_step_handler(message, content_handler)
-
-
-def keyboard_for_post():
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    key_save_post = types.KeyboardButton(text=TEXT_FOR_SAVE_POST)
-    key_not_save_post = types.KeyboardButton(text=TEXT_FOR_NOT_SAVE_POST)
-    keyboard.add(key_save_post); keyboard.add(key_not_save_post)
-    return keyboard
 
 
 @bot.message_handler(content_types=['text'])
@@ -159,12 +134,12 @@ def callback_send_post(message):
         photo, content = post.get("photo"), post.get("content")
         users_id = list(filter(lambda user_id: user_id not in EXCLUDE_USERS, Admin().show_users_which_send_post()))
         message_user = None
-        for id in users_id:
+        for user_id in users_id:
             if photo:
-                message_user = bot.send_photo(id, photo=open(photo, "rb"), caption=content,
-                               reply_markup=keyboard_answer())
+                message_user = bot.send_photo(user_id, photo=open(photo, "rb"), caption=content,
+                                              reply_markup=keyboard_answer())
             elif content:
-                message_user = bot.send_message(id, content, reply_markup=keyboard_answer())
+                message_user = bot.send_message(user_id, content, reply_markup=keyboard_answer())
         if message_user:
             bot.send_message(message.from_user.id, text="Все пользователи успешно получили сообщение!")
             bot.register_next_step_handler(message_user, callback_answer, {"post": post})
@@ -172,16 +147,24 @@ def callback_send_post(message):
             bot.send_message(message.from_user.id, text="Нет пользователей, которые могли бы получить рассылку!")
 
 
-def keyboard_answer():
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    key_first_answer = types.KeyboardButton(text=TEXT_FOR_FIRST_ANSWER)
-    keyboard.add(key_first_answer)
-    return keyboard
-
-
 @bot.message_handler(content_types=['text'])
 def callback_answer(message, post):
+    correct_answer = True
+    if message.text == TEXT_FOR_FIRST_ANSWER:
+        User().set_answer_later(days=3, post=post['post'], user_id=message.from_user.id)
+        correct_answer = False
+    if message.text == TEXT_FOR_SECOND_ANSWER:
+        User().set_answer_later(days=7, post=post['post'], user_id=message.from_user.id)
+        correct_answer = False
     User().set_answer(message, post['post'])
+    if correct_answer:
+        bot.send_message(message.from_user.id,
+                         "Спасибо за ответ!",
+                         reply_markup=types.ReplyKeyboardRemove())
+    else:
+        bot.send_message(message.from_user.id,
+                         "Спасибо, мы напишем позже!",
+                         reply_markup=types.ReplyKeyboardRemove())
 
 
 def callback_posts(message):
@@ -189,16 +172,25 @@ def callback_posts(message):
     if not posts:
         return bot.send_message(message.from_user.id, text="Публикаций нет!")
     for post in posts:
-        bot.send_photo(message.from_user.id, photo=open(post.get('photo'), "rb"), caption=f"ID поста: {post.get('id')}\n"
-                                                                                          f"{post.get('content')}\n"
-                                                                                          f"Ответы: \n{str_answer(post['answer']) if post.get('answer') else 'Нет ответов.'}\n"
-                                                                                          f"Дата создания: {post.get('date_create')}")
+        bot.send_photo(message.from_user.id, photo=open(post.get('photo'), "rb"),
+                       caption=f"ID поста: {post.get('id')}\n"
+                               f"{post.get('content')}\n"
+                               f"Ответы: \n{str_answer(post['answer']) if post.get('answer') else 'Нет ответов.'}\n"
+                               f"Дата создания: {post.get('date_create')}")
 
 
-def str_answer(answers):
-    return "".join([f"Ник пользователя: {answer['username']}\n"
-                    f"ID пользователя: {answer['user_id']}\n"
-                    f"Ответ: {answer['text']}\n" for answer in answers])
+@bot.message_handler(content_types=['text'])
+def callback_later_answer():
+    while True:
+        if ReadLaterAnswerFile().check_current_date_exists:
+            for later_answer in ReadLaterAnswerFile().show_later_answers:
+                message_user = bot.send_message(later_answer['user_id'],
+                                                "Привет, ты обещал дать ответ!",
+                                                reply_markup=keyboard_answer())
+                bot.register_next_step_handler(message_user, callback_answer, {"post": later_answer['post']})
+            WriteLaterAnswerFile().remove_today_answer()
+        # time.sleep(10800)
 
 
+Thread(target=callback_later_answer).start()
 bot.polling(none_stop=True, interval=0)
