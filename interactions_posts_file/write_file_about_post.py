@@ -14,7 +14,7 @@ class WritePost(PostsFile):
     def write_post(self):
         posts = self.already_use_data
         current_post_id = max([int(i["id"]) for i in posts]) + 1 if posts else 1
-        with open(self.PATH, "+w") as post_file:
+        with open(self.PATH, "w+") as post_file:
             posts.append(self.post(current_post_id))
             json.dump(posts, post_file)
 
@@ -24,7 +24,7 @@ class WritePost(PostsFile):
             if post['id'] == post_with_answer['id']:
                 posts.remove(post)
                 posts.append(post_with_answer)
-        with open(self.PATH, "+w") as post_file:
+        with open(self.PATH, "w+") as post_file:
             json.dump(posts, post_file)
 
     @lru_cache()

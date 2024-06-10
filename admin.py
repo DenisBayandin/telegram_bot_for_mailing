@@ -27,7 +27,7 @@ class Admin:
         response = requests.get(photo_url)
         path = 'uploads/{}.jpg'.format(file_id)
         CURRENT_PHOTO = path
-        with open(path, '+wb') as file:
+        with open(path, 'wb+') as file:
             file.write(response.content)
 
     def set_content(self, message):

@@ -70,13 +70,13 @@ def callback_exclude_user(message):
 
 @bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
 def callback_add_user_in_exclude(message):
-    bot.send_message(message.from_user.id, Admin().add_exclude_user(int(message.text)), reply_markup=keyboard_start())
+    bot.send_message(message.from_user.id, Admin().add_exclude_user(message.text), reply_markup=keyboard_start())
     bot.register_next_step_handler(message, callback_admin)
 
 
 @bot.message_handler(content_types=['text'], func=lambda message: message.from_user.id == ADMIN_ID)
 def callback_remove_user_in_exclude(message):
-    bot.send_message(message.from_user.id, Admin().remove_exclude_user(int(message.text)), reply_markup=keyboard_start())
+    bot.send_message(message.from_user.id, Admin().remove_exclude_user(message.text), reply_markup=keyboard_start())
     bot.register_next_step_handler(message, callback_admin)
 
 
@@ -157,14 +157,19 @@ def callback_send_post(message):
     post = Admin().search_post(post_id)
     if post:
         photo, content = post.get("photo"), post.get("content")
-        for id in Admin().show_users_which_send_post():
+        users_id = list(filter(lambda user_id: user_id not in EXCLUDE_USERS, Admin().show_users_which_send_post()))
+        message_user = None
+        for id in users_id:
             if photo:
                 message_user = bot.send_photo(id, photo=open(photo, "rb"), caption=content,
                                reply_markup=keyboard_answer())
             elif content:
                 message_user = bot.send_message(id, content, reply_markup=keyboard_answer())
-        bot.send_message(message.from_user.id, text="Все пользователи успешно получили сообщение!")
-        bot.register_next_step_handler(message_user, callback_answer, {"post": post})
+        if message_user:
+            bot.send_message(message.from_user.id, text="Все пользователи успешно получили сообщение!")
+            bot.register_next_step_handler(message_user, callback_answer, {"post": post})
+        else:
+            bot.send_message(message.from_user.id, text="Нет пользователей, которые могли бы получить рассылку!")
 
 
 def keyboard_answer():
@@ -180,7 +185,10 @@ def callback_answer(message, post):
 
 
 def callback_posts(message):
-    for post in Admin().posts():
+    posts = Admin().posts()
+    if not posts:
+        return bot.send_message(message.from_user.id, text="Публикаций нет!")
+    for post in posts:
         bot.send_photo(message.from_user.id, photo=open(post.get('photo'), "rb"), caption=f"ID поста: {post.get('id')}\n"
                                                                                           f"{post.get('content')}\n"
                                                                                           f"Ответы: \n{str_answer(post['answer']) if post.get('answer') else 'Нет ответов.'}\n"

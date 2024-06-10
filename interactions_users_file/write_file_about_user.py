@@ -12,7 +12,7 @@ class WriteInformationAbotUser(UsersFile):
 
     def write_info(self):
         users = self.already_use_data
-        with open(self.PATH, "+w") as user_file:
+        with open(self.PATH, "w+") as user_file:
             data_about_user = {self.information_json["id"]: self.information}
             if list(data_about_user.keys())[0] not in list(map(lambda id: int(id), users.keys())):
                 json.dump(users | data_about_user, user_file)

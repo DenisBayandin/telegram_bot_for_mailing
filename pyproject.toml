@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "telegram-bot-for-mailing"
+version = "0.1.0"
+description = ""
+authors = ["denis.bayandin <denis.bayandin@saltpepper.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.12"
+telebot = "^0.0.5"
+python-decouple = "^3.8"
+requests = "^2.32.3"
+urllib3 = "^2.2.1"
+pytelegrambotapi = "^4.19.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
