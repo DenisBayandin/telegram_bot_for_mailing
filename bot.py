@@ -5,7 +5,7 @@ from telebot import types
 from threading import Thread
 
 from config import TG_TOKEN, ADMIN_ID
-from admin import Admin, EXCLUDE_USERS
+from admin import Admin, EXCLUDE_USERS, remove_photo, remove_content
 from user import User
 from constants import *
 from interactions_later_answers_file.read import ReadLaterAnswerFile
@@ -16,8 +16,8 @@ from keyboards.post import keyboard_for_post
 from keyboards.set_content import keyboard_set_content
 from keyboards.admin import keyboard_admin
 from keyboards.posts import keyboard_posts
+from errors import ExceededLength, ExceededLengthWithPhoto
 from utils import str_answer
-
 
 bot = telebot.TeleBot(TG_TOKEN)
 
@@ -44,7 +44,8 @@ def admin_handler(message):
     elif message.text == TEXT_FOR_BUTTON_CONTENT:
         bot.send_message(message.from_user.id,
                          text="Что хочешь сохранить? "
-                         "Учти, что вместе с фотографией можно отправить только 1000 символов.",
+                              "Учти, что вместе с фотографией можно отправить только 1000 символов. "
+                              "Если только текст, то 4000 символов.",
                          reply_markup=keyboard_set_content())
         bot.register_next_step_handler(message, content_handler)
     elif message.text == TEXT_FOR_CURRENT_POST:
@@ -113,13 +114,25 @@ def callback_set_content_text(message):
 
 
 def callback_current_post(message):
-    photo, content = Admin().show_current_post()
+    try:
+        photo, content = Admin().show_current_post()
+    except ExceededLengthWithPhoto:
+        bot.send_message(message.from_user.id,
+                         "Длина текста превышает 1000 символов. Вернёмся к редактированию поста!",
+                         reply_markup=keyboard_set_content())
+        bot.register_next_step_handler(message, content_handler)
+    except ExceededLength:
+        bot.send_message(message.from_user.id,
+                         "Длина текста превышает 4000 символов. Вернёмся к редактированию поста!",
+                         reply_markup=keyboard_set_content())
+        bot.register_next_step_handler(message, content_handler)
     if photo:
         bot.send_photo(message.from_user.id, photo=open(photo, "rb"), caption=content, reply_markup=keyboard_for_post())
     elif content:
         bot.send_message(message.from_user.id, content, reply_markup=keyboard_for_post())
     else:
-        bot.send_message(message.from_user.id, "Нет данных")
+        bot.send_message(message.from_user.id, "Нет данных", reply_markup=keyboard_admin())
+        bot.register_next_step_handler(message, admin_handler)
     bot.register_next_step_handler(message, post_handler)
 
 
@@ -134,6 +147,12 @@ def post_handler(message):
         bot.register_next_step_handler(message, content_handler)
     elif message.text == TEXT_FOR_RETURN_TO_BACK:
         bot.send_message(message.from_user.id, "Вернёмся назад!", reply_markup=keyboard_admin())
+    elif message.text == TEXT_REMOVE_CONTENT_FOR_POST:
+        remove_content()
+        callback_current_post(message)
+    elif message.text == TEXT_REMOVE_PHOTO_FOR_POST:
+        remove_photo()
+        callback_current_post(message)
 
 
 @bot.message_handler(content_types=['text'])
@@ -202,9 +221,9 @@ def callback_posts(message):
         elif post.get('content'):
             bot.send_message(message.from_user.id,
                              text=f"ID поста: {post.get('id')}\n"
-                                   f"{post.get('content')}\n"
-                                   f"Ответы: \n{str_answer(post['answer']) if post.get('answer') else 'Нет ответов.'}\n"
-                                   f"Дата создания: {post.get('date_create')}")
+                                  f"{post.get('content')}\n"
+                                  f"Ответы: \n{str_answer(post['answer']) if post.get('answer') else 'Нет ответов.'}\n"
+                                  f"Дата создания: {post.get('date_create')}")
 
 
 @bot.message_handler(content_types=['text'])

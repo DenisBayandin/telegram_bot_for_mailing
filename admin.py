@@ -4,6 +4,8 @@ from interactions_users_file.write_file_about_user import WriteInformationAbotUs
 from interactions_users_file.read_file_about_user import ReadInformationAbotUser
 from interactions_posts_file.write_file_about_post import WritePost
 from interactions_posts_file.read_file_about_post import ReadPost
+from errors import ExceededLength, ExceededLengthWithPhoto
+
 
 CURRENT_PHOTO = ""
 CURRENT_CONTENT = ""
@@ -35,6 +37,10 @@ class Admin:
         CURRENT_CONTENT = message.text
 
     def show_current_post(self):
+        if CURRENT_CONTENT and CURRENT_PHOTO and len(CURRENT_CONTENT) > 1000:
+            raise ExceededLengthWithPhoto
+        elif not CURRENT_PHOTO and CURRENT_CONTENT and len(CURRENT_CONTENT) > 4000:
+            raise ExceededLength
         return CURRENT_PHOTO, CURRENT_CONTENT
 
     def show_users_which_send_post(self):
@@ -77,3 +83,13 @@ class Admin:
     def show_exclude_users(self):
         return f"Список id-ников исключенных из рассылки: " + "".join(EXCLUDE_USERS) if\
             EXCLUDE_USERS else "Пользователей не найдено!"
+
+
+def remove_photo():
+    global CURRENT_PHOTO
+    CURRENT_PHOTO = ""
+
+
+def remove_content():
+    global CURRENT_CONTENT
+    CURRENT_CONTENT = ""

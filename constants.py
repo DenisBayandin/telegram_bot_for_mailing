@@ -14,3 +14,5 @@ TEXT_FOR_SHOW_EXCLUDE_USERS = "Показать исключенных поль�
 TEXT_FOR_FIRST_ANSWER = "Отвечу через 3 дня"
 TEXT_FOR_SECOND_ANSWER = "Отвечу через 7 дней"
 TEXT_FOR_RETURN_TO_BACK = "Вернуться обратно"
+TEXT_REMOVE_PHOTO_FOR_POST = "Удалить фотографию"
+TEXT_REMOVE_CONTENT_FOR_POST = "Удалить текст"
