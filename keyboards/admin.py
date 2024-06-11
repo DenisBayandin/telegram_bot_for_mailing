@@ -5,7 +5,7 @@ from constants import (TEXT_FOR_BUTTON_CONTENT, TEXT_FOR_BUTTON_EXCLUDE_USERS,
                        TEXT_FOR_CURRENT_POST, TEXT_FOR_POSTS)
 
 
-def keyboard_start():
+def keyboard_admin():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     key_content = types.KeyboardButton(text=TEXT_FOR_BUTTON_CONTENT)
     key_exclude_users = types.KeyboardButton(text=TEXT_FOR_BUTTON_EXCLUDE_USERS)
